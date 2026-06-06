@@ -14,25 +14,21 @@ try:
     from engine import Game
     from boss_designer import BossDesigner # FEATURE: Imported new app!
 
-    # Safety wrapper: ensure Game instances always have a valid .map attribute.
-    # This guards against partially-constructed Game objects when initialization
-    # fails silently in engine.py (some code swallows exceptions). We prefer
-    # fixing engine.py, but this runtime guard prevents the AttributeError crash.
-    try:
-        import engine as _engine_module
-        _orig_game_init = Game.__init__
-        def _game_init_with_map(self, *args, **kwargs):
-            _orig_game_init(self, *args, **kwargs)
-            if not hasattr(self, 'map'):
-                try:
-                    self.map = [[_engine_module.TileType.EMPTY.value for _ in range(_engine_module.MAP_SIZE)] for _ in range(_engine_module.MAP_SIZE)]
-                except Exception:
-                    self.map = [[0 for _ in range(50)] for _ in range(50)]
-        Game.__init__ = _game_init_with_map
-    except Exception:
-        # If anything goes wrong here, we silently continue — the original
-        # exception handling in main.py will show useful traces.
-        pass
+    # Helper: safely run an object's run() method if it exists
+    def safe_run(obj, name="object"):
+        run_m = getattr(obj, 'run', None)
+        if callable(run_m):
+            try:
+                return run_m()
+            except Exception:
+                print(f"\nEve says: Exception while running {name}:")
+                traceback.print_exc()
+                input("\nPress Enter to exit...")
+                sys.exit()
+        else:
+            print(f"\nEve says: The {name} has no callable run() method.\nAvailable attributes: {', '.join([a for a in dir(obj) if not a.startswith('_')])}")
+            input("\nPress Enter to exit...")
+            sys.exit()
 
     def show_main_menu():
         pygame.init()
@@ -108,13 +104,13 @@ try:
             choice = show_main_menu()
             if choice == "play":
                 game = Game()
-                game.run()
+                safe_run(game, "Game")
             elif choice == "edit":
                 editor = MapEditor()
-                editor.run()
+                safe_run(editor, "MapEditor")
             elif choice == "boss":
                 designer = BossDesigner()
-                designer.run()
+                safe_run(designer, "BossDesigner")
 
 except Exception as e:
     print("\nEve says: Oh no, the engine crashed! Here is the error:")
